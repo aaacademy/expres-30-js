@@ -1,6 +1,40 @@
 const model = require('../models')
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+
+function loginUser(req, res) {
+    const email = req.body.email
+    const password = req.body.password
+
+    model.User.findOne({
+        where: {
+          email: email
+        }
+    })
+    .then( function(result) {
+        let passwordHash = result.password
+        let checkPassword = bcrypt.compareSync(password, passwordHash);
+        
+        if(checkPassword) {
+            res.json({
+                message: "Berhasil Login",
+                token: jwt.sign({ id: result.id }, 'asrul-dev')
+            })
+        } else {
+            res.json({
+                message: "Gagal Login",
+            })
+        }
+    })
+    .catch( function(error) {
+        res.json({error: error})
+    })
+}
 
 function createUser(req, res) {
+    let salt = bcrypt.genSaltSync(10)
+    let hash = bcrypt.hashSync(req.body.password, salt)
+
     model.User.create({
         name: req.body.name,
         label: req.body.label,
@@ -8,7 +42,8 @@ function createUser(req, res) {
         email: req.body.email,
         phone: req.body.phone,
         website: req.body.website,
-        summary: req.body.summary
+        summary: req.body.summary,
+        password: hash,
     })
     .then( function(result) {
         res.json(result)
@@ -29,6 +64,14 @@ function readUser(req, res) {
 }
 
 function updateUser(req, res) {
+    let decodedId =  req.decoded.id
+
+    if(decodedId !== req.params.id) {
+        res.json({
+            message: "Ini bukan data Anda"
+        })
+    }
+
     model.User.update({
         name: req.body.name,
         label: req.body.label,
@@ -51,6 +94,14 @@ function updateUser(req, res) {
 }
 
 function deleteUser(req, res) {
+    let decodedId =  req.decoded.id
+    
+    if(decodedId !== req.params.id) {
+        res.json({
+            message: "Ini bukan data Anda"
+        })
+    }
+
     model.User.destroy({
         where: {
           id: req.params.id
@@ -69,4 +120,5 @@ module.exports = {
     readUser,
     updateUser,
     deleteUser,
+    loginUser,
 }
